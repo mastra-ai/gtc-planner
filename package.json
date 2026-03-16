@@ -1,0 +1,39 @@
+{
+  "name": "gtc-session-advisor",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "ingest": "tsx src/ingest.ts",
+    "chat": "tsx src/chat.ts",
+    "dev": "concurrently -n api,web -c green,cyan \"mastra dev\" \"npm run dev --prefix web\"",
+    "build:api": "npx mastra build",
+    "build:web": "npm run build --prefix web",
+    "build": "npm run build:api && npm run build:web",
+    "start": "npx mastra start"
+  },
+  "keywords": [
+    "nvidia",
+    "gtc",
+    "mastra",
+    "ai-agent"
+  ],
+  "author": "",
+  "license": "ISC",
+  "description": "AI agent to help NVIDIA GTC 2026 attendees choose sessions based on preferences",
+  "dependencies": {
+    "@ai-sdk/openai": "^3.0.41",
+    "@mastra/ai-sdk": "^1.1.3",
+    "@mastra/core": "^1.13.2",
+    "@mastra/libsql": "^1.7.0",
+    "@mastra/memory": "^1.8.2",
+    "@types/node": "^25.5.0",
+    "mastra": "^1.3.12",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
