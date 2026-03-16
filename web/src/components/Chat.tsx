@@ -509,7 +509,13 @@ export function Chat({
               </select>
               {messages.length > 0 && (
                 <button
-                  onClick={() => setMessages([])}
+                  onClick={() => {
+                    setMessages([])
+                    // Delete thread + observations from memory backend
+                    fetch(`${API_BASE}/api/memory/threads/${encodeURIComponent(threadId)}?agentId=gtcAdvisor&resourceId=${encodeURIComponent(resourceId)}`, {
+                      method: 'DELETE',
+                    }).catch(() => {})
+                  }}
                   className="text-zinc-600 hover:text-zinc-400 transition cursor-pointer"
                   title="Clear conversation"
                 >
