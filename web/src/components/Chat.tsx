@@ -450,16 +450,14 @@ export function Chat({
 
   // Calendar data for plan tab
   const CONFERENCE_DAYS = [
-    { day: 'Sunday', date: 'Mar 16', full: 'March 16, 2026' },
-    { day: 'Monday', date: 'Mar 17', full: 'March 17, 2026' },
-    { day: 'Tuesday', date: 'Mar 18', full: 'March 18, 2026' },
-    { day: 'Wednesday', date: 'Mar 19', full: 'March 19, 2026' },
-    { day: 'Thursday', date: 'Mar 20', full: 'March 20, 2026' },
-    { day: 'Friday', date: 'Mar 21', full: 'March 21, 2026' },
+    { day: 'Sunday', date: 'Mar 16', num: 16 },
+    { day: 'Monday', date: 'Mar 17', num: 17 },
+    { day: 'Tuesday', date: 'Mar 18', num: 18 },
+    { day: 'Wednesday', date: 'Mar 19', num: 19 },
+    { day: 'Thursday', date: 'Mar 20', num: 20 },
+    { day: 'Friday', date: 'Mar 21', num: 21 },
   ]
-  const HOUR_START = 8  // 8 AM
-  const HOUR_END = 22   // 10 PM
-  const HOUR_HEIGHT = 60 // px per hour
+  const HOUR_HEIGHT = 80 // px per hour — taller for readability
   const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + (m || 0) }
   const fmtHour = (h: number) => h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`
 
@@ -479,6 +477,19 @@ export function Chat({
       .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''))
   }, [itinerary, planDay])
 
+  // Auto-zoom: compute visible hour range from events (with 1hr padding)
+  const { hourStart, hourEnd } = useMemo(() => {
+    if (dayItems.length === 0) return { hourStart: 9, hourEnd: 18 }
+    let minH = 24, maxH = 0
+    for (const item of dayItems) {
+      const s = toMin(item.startTime || '09:00') / 60
+      const e = toMin(item.endTime || item.startTime || '10:00') / 60
+      if (s < minH) minH = s
+      if (e > maxH) maxH = e
+    }
+    return { hourStart: Math.max(0, Math.floor(minH) - 1), hourEnd: Math.min(24, Math.ceil(maxH) + 1) }
+  }, [dayItems])
+
   // Assign columns to handle overlapping items
   const layoutItems = useMemo(() => {
     const items = dayItems.map(item => {
@@ -486,8 +497,7 @@ export function Chat({
       const end = toMin(item.endTime || item.startTime || '09:00')
       return { ...item, startMin: start, endMin: Math.max(end, start + 30), col: 0 }
     })
-    // Greedy column packing: place each item in first column where it doesn't overlap
-    const colEnds: number[][] = [] // colEnds[c] = array of endMin values in that column
+    const colEnds: number[][] = []
     for (const item of items) {
       let placed = false
       for (let c = 0; c < colEnds.length; c++) {
@@ -670,25 +680,30 @@ export function Chat({
       {/* Plan (calendar) view */}
       {tab === 'plan' && (
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Day selector */}
-          <div className="flex gap-1 px-2 py-2 border-b border-zinc-800 overflow-x-auto shrink-0">
+          {/* Day selector — pill strip */}
+          <div className="flex px-3 py-2.5 border-b border-zinc-800 overflow-x-auto shrink-0 gap-1">
             {CONFERENCE_DAYS.map(d => {
               const count = dayItemCounts[d.day] || 0
+              const active = planDay === d.day
               return (
                 <button
                   key={d.day}
                   onClick={() => setPlanDay(d.day)}
-                  className={`flex flex-col items-center px-2.5 py-1.5 rounded-lg text-[11px] transition cursor-pointer whitespace-nowrap shrink-0 ${
-                    planDay === d.day
-                      ? 'bg-nv/15 text-nv'
-                      : 'text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-400'
+                  className={`relative flex flex-col items-center min-w-[46px] px-2 py-1.5 rounded-xl transition cursor-pointer shrink-0 ${
+                    active
+                      ? 'bg-nv/12 ring-1 ring-nv/30'
+                      : 'hover:bg-zinc-800/60'
                   }`}
                 >
-                  <span className="font-medium">{d.day.slice(0, 3)}</span>
-                  <span className={`text-[10px] ${planDay === d.day ? 'text-nv/70' : 'text-zinc-600'}`}>{d.date}</span>
+                  <span className={`text-[10px] uppercase tracking-wide ${active ? 'text-nv font-semibold' : 'text-zinc-500 font-medium'}`}>
+                    {d.day.slice(0, 3)}
+                  </span>
+                  <span className={`text-lg font-bold leading-none mt-0.5 ${active ? 'text-zinc-100' : 'text-zinc-400'}`}>
+                    {d.num}
+                  </span>
                   {count > 0 && (
-                    <span className={`mt-0.5 text-[9px] px-1.5 py-px rounded-full ${
-                      planDay === d.day ? 'bg-nv/20 text-nv' : 'bg-zinc-800 text-zinc-500'
+                    <span className={`absolute -top-1 -right-1 text-[9px] font-bold min-w-[16px] h-4 flex items-center justify-center rounded-full ${
+                      active ? 'bg-nv text-zinc-950' : 'bg-zinc-700 text-zinc-300'
                     }`}>{count}</span>
                   )}
                 </button>
@@ -699,96 +714,123 @@ export function Chat({
           {/* Timeline */}
           <div className="flex-1 overflow-y-auto">
             {dayItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center px-6">
-                <svg className="w-8 h-8 text-zinc-700 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                </svg>
-                <p className="text-xs text-zinc-500 leading-relaxed">
-                  Nothing on {planDay} yet. Switch to <button onClick={() => setTab('chat')} className="text-nv hover:underline cursor-pointer">Chat</button> and ask <span className="text-nv">nemo</span> to build your schedule.
+              <div className="flex flex-col items-center justify-center h-full text-center px-8">
+                <div className="w-12 h-12 rounded-2xl bg-zinc-800/50 flex items-center justify-center mb-3">
+                  <svg className="w-6 h-6 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                  </svg>
+                </div>
+                <p className="text-sm text-zinc-400 font-medium mb-1">No events on {planDay}</p>
+                <p className="text-xs text-zinc-600 leading-relaxed">
+                  Ask <button onClick={() => setTab('chat')} className="text-nv hover:underline cursor-pointer font-medium">nemo</button> to add sessions and parties to your schedule.
                 </p>
               </div>
             ) : (
-              <div className="relative" style={{ minHeight: `${(HOUR_END - HOUR_START) * HOUR_HEIGHT + 40}px` }}>
+              <div className="relative py-3" style={{ minHeight: `${(hourEnd - hourStart) * HOUR_HEIGHT + 24}px` }}>
                 {/* Hour gridlines */}
-                {Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, i) => HOUR_START + i).map(h => (
+                {Array.from({ length: hourEnd - hourStart + 1 }, (_, i) => hourStart + i).map(h => (
                   <div
                     key={h}
                     className="absolute left-0 right-0 flex items-start"
-                    style={{ top: `${(h - HOUR_START) * HOUR_HEIGHT}px` }}
+                    style={{ top: `${(h - hourStart) * HOUR_HEIGHT + 12}px` }}
                   >
-                    <span className="text-[10px] text-zinc-600 w-12 shrink-0 text-right pr-2 -mt-1.5 select-none">
+                    <span className="text-[11px] text-zinc-600 w-14 shrink-0 text-right pr-3 -mt-2 select-none font-medium tabular-nums">
                       {fmtHour(h)}
                     </span>
-                    <div className="flex-1 border-t border-zinc-800/50" />
+                    <div className="flex-1 border-t border-zinc-800/40" />
                   </div>
                 ))}
 
                 {/* Event blocks */}
-                <div className="absolute left-12 right-2 top-0 bottom-0">
+                <div className="absolute left-14 right-3 top-0 bottom-0">
                   {layoutItems.map(item => {
-                    const top = Math.max(0, (item.startMin / 60 - HOUR_START) * HOUR_HEIGHT)
-                    const height = Math.max(36, ((item.endMin - item.startMin) / 60) * HOUR_HEIGHT)
+                    const top = Math.max(0, (item.startMin / 60 - hourStart) * HOUR_HEIGHT + 12)
+                    const height = Math.max(48, ((item.endMin - item.startMin) / 60) * HOUR_HEIGHT)
                     const widthPct = 100 / item.totalCols
                     const leftPct = item.col * widthPct
+                    const isSession = item.type === 'session'
 
                     return (
                       <div
                         key={item.id}
-                        className={`absolute rounded-lg border overflow-hidden group transition-colors ${
-                          item.type === 'session'
-                            ? 'bg-nv/8 border-nv/20 hover:bg-nv/15'
-                            : 'bg-purple-500/8 border-purple-500/20 hover:bg-purple-500/15'
+                        className={`absolute rounded-xl border overflow-hidden group transition-all duration-150 ${
+                          isSession
+                            ? 'bg-nv/6 border-nv/15 hover:bg-nv/12 hover:border-nv/30'
+                            : 'bg-purple-500/6 border-purple-500/15 hover:bg-purple-500/12 hover:border-purple-500/30'
                         }`}
                         style={{
                           top: `${top}px`,
                           height: `${height}px`,
                           left: `${leftPct}%`,
-                          width: `calc(${widthPct}% - 4px)`,
+                          width: `calc(${widthPct}% - 6px)`,
                         }}
                       >
-                        <div className="px-2 py-1 h-full flex flex-col overflow-hidden">
-                          <div className="flex items-center gap-1 shrink-0">
-                            <span className={`text-[9px] font-medium ${
-                              item.type === 'session' ? 'text-nv/70' : 'text-purple-400/70'
+                        {/* Colored left accent bar */}
+                        <div className={`absolute left-0 top-2 bottom-2 w-[3px] rounded-full ${
+                          isSession ? 'bg-nv/50' : 'bg-purple-400/50'
+                        }`} />
+
+                        <div className="pl-3 pr-2 py-2 h-full flex flex-col overflow-hidden">
+                          {/* Top row: type + code + conflict + remove */}
+                          <div className="flex items-center gap-1.5 shrink-0 mb-0.5">
+                            <span className={`text-[10px] font-semibold uppercase tracking-wide ${
+                              isSession ? 'text-nv/60' : 'text-purple-400/60'
                             }`}>
-                              {item.type === 'session' ? (item.sessionType ?? 'Session') : 'Party'}
+                              {isSession ? (item.sessionType ?? 'Session') : 'Party'}
                             </span>
                             {item.code && (
-                              <span className="text-[9px] font-mono text-zinc-600">{item.code}</span>
+                              <span className="text-[10px] font-mono text-zinc-600">{item.code}</span>
                             )}
                             {item.totalCols > 1 && (
-                              <span className="text-[8px] text-amber-400/70" title="Overlapping events">⚠</span>
+                              <span className="flex items-center gap-0.5 text-[10px] text-amber-400/80 font-medium" title="Time conflict">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                                </svg>
+                              </span>
                             )}
                             <button
                               onClick={() => onRemoveItineraryItem(item.id)}
-                              className="ml-auto text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all shrink-0 cursor-pointer"
-                              title="Remove"
+                              className="ml-auto text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all shrink-0 cursor-pointer p-0.5"
+                              title="Remove from plan"
                             >
-                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                               </svg>
                             </button>
                           </div>
-                          <h4 className={`text-[11px] leading-snug font-medium ${
-                            item.type === 'session' ? 'text-zinc-200' : 'text-purple-200'
-                          } ${height > 50 ? 'line-clamp-2' : 'line-clamp-1'}`}>
+
+                          {/* Title */}
+                          <h4 className={`text-[13px] leading-tight font-medium ${
+                            isSession ? 'text-zinc-200' : 'text-purple-200'
+                          } ${height > 60 ? 'line-clamp-2' : 'line-clamp-1'}`}>
                             {item.title}
                           </h4>
-                          {height > 44 && (
-                            <div className="mt-auto text-[10px] text-zinc-500 truncate">
-                              {item.time}
+
+                          {/* Details pushed to bottom */}
+                          <div className="mt-auto pt-1 space-y-0.5">
+                            <div className="flex items-center gap-1.5 text-[11px] text-zinc-400">
+                              <svg className="w-3 h-3 shrink-0 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                              </svg>
+                              <span className="truncate">{item.time}</span>
                             </div>
-                          )}
-                          {height > 64 && item.location && item.location !== 'TBD' && (
-                            <div className="text-[9px] text-zinc-600 truncate">{item.location}</div>
-                          )}
-                          {height > 80 && item.sponsors && item.sponsors.length > 0 && (
-                            <div className="flex flex-wrap gap-0.5 mt-0.5">
-                              {item.sponsors.map((s: string) => (
-                                <span key={s} className="text-[8px] bg-purple-500/10 text-purple-400/60 px-1 py-px rounded">{s}</span>
-                              ))}
-                            </div>
-                          )}
+                            {height > 68 && item.location && item.location !== 'TBD' && (
+                              <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
+                                <svg className="w-3 h-3 shrink-0 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                </svg>
+                                <span className="truncate">{item.location}</span>
+                              </div>
+                            )}
+                            {height > 90 && item.sponsors && item.sponsors.length > 0 && (
+                              <div className="flex flex-wrap gap-1 pt-0.5">
+                                {item.sponsors.map((s: string) => (
+                                  <span key={s} className="text-[10px] bg-purple-500/10 text-purple-300/70 px-1.5 py-0.5 rounded-md">{s}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )
