@@ -190,9 +190,25 @@ const MarkdownBlock = memo(function MarkdownBlock({ text }: { text: string }) {
   )
 })
 
+function isToolPart(part: any): boolean {
+  return part.type?.startsWith('tool-') || part.type === 'dynamic-tool'
+}
+
+function getToolName(part: any): string {
+  if (part.type === 'dynamic-tool') return part.toolName ?? 'tool'
+  if (part.type?.startsWith('tool-')) return part.type.slice(5)
+  return 'tool'
+}
+
+function getToolState(part: any): string {
+  if (part.result !== undefined) return 'result'
+  if (part.input !== undefined || part.args !== undefined) return 'call'
+  return 'pending'
+}
+
 const MessageBubble = memo(function MessageBubble({ message }: { message: UIMessage }) {
   const textParts = message.parts?.filter(p => p.type === 'text') ?? []
-  const toolParts = message.parts?.filter(p => p.type === 'tool-invocation') ?? []
+  const toolParts = message.parts?.filter(p => isToolPart(p)) ?? []
   const hasContent = textParts.some(p => (p as any).text?.trim()) || toolParts.length > 0
 
   if (!hasContent && message.role === 'assistant') return null
@@ -200,15 +216,17 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: UIMess
   return (
     <div className="flex flex-col gap-1">
       {toolParts.map((part, i) => {
-        const inv = (part as any).toolInvocation
+        const name = getToolName(part)
+        const state = getToolState(part)
         return (
           <div key={`t-${i}`} className="flex items-center gap-1.5 text-[11px] text-zinc-500 px-1">
             <svg className="w-3 h-3 text-nv/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
             </svg>
-            <span className="text-zinc-400">{inv?.toolName ?? 'tool'}</span>
-            {inv?.state === 'result' && <span className="text-nv/60">done</span>}
-            {inv?.state === 'call' && <span className="text-yellow-500/60 animate-pulse">running</span>}
+            <span className="text-zinc-400">{name}</span>
+            {state === 'result' && <span className="text-nv/60">done</span>}
+            {state === 'call' && <span className="text-yellow-500/60 animate-pulse">running</span>}
+            {state === 'pending' && <span className="text-yellow-500/60 animate-pulse">running</span>}
           </div>
         )
       })}
@@ -360,10 +378,10 @@ export function Chat({
     for (const msg of messages) {
       if (msg.role !== 'assistant') continue
       for (const part of msg.parts ?? []) {
-        if (part.type !== 'tool-invocation') continue
-        const inv = (part as any).toolInvocation
-        if (inv?.state === 'result' && inv?.result?.action === 'save-itinerary') {
-          const updated = inv.result.updatedItinerary
+        if (!isToolPart(part)) continue
+        const p = part as any
+        if (p.result?.action === 'save-itinerary') {
+          const updated = p.result.updatedItinerary
           if (Array.isArray(updated)) {
             onItineraryChange(updated)
           }

@@ -7,9 +7,10 @@ function findSessionsFile(): string {
   // Try several known locations since Mastra bundles change cwd
   const candidates = [
     join(process.cwd(), "src/data/sessions.json"),
+    join(process.cwd(), "../src/data/sessions.json"),
+    join(process.cwd(), "../../src/data/sessions.json"),
     join(process.cwd(), "../../../src/data/sessions.json"),
-    join(process.cwd(), "../../data/sessions.json"),
-    join(process.cwd(), "../data/sessions.json"),
+    "/app/src/data/sessions.json",
     resolve("src/data/sessions.json"),
   ];
   for (const p of candidates) {
