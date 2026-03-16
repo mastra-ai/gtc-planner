@@ -11,7 +11,13 @@ export const mastra = new Mastra({
   }),
   server: {
     cors: {
-      origin: "http://localhost:5173",
+      origin: (origin: string) => {
+        const allowed = [
+          "http://localhost:5173",
+          "https://web-production-8f839.up.railway.app",
+        ];
+        return allowed.includes(origin) ? origin : allowed[0];
+      },
       credentials: true,
     },
     apiRoutes: [
