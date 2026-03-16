@@ -746,7 +746,7 @@ export function Chat({
                           width: `calc(${widthPct}% - 4px)`,
                         }}
                       >
-                        <div className="px-2 py-1.5 h-full flex flex-col overflow-hidden">
+                        <div className="px-2 py-1 h-full flex flex-col overflow-hidden">
                           <div className="flex items-center gap-1 shrink-0">
                             <span className={`text-[9px] font-medium ${
                               item.type === 'session' ? 'text-nv/70' : 'text-purple-400/70'
@@ -755,6 +755,9 @@ export function Chat({
                             </span>
                             {item.code && (
                               <span className="text-[9px] font-mono text-zinc-600">{item.code}</span>
+                            )}
+                            {item.totalCols > 1 && (
+                              <span className="text-[8px] text-amber-400/70" title="Overlapping events">⚠</span>
                             )}
                             <button
                               onClick={() => onRemoveItineraryItem(item.id)}
@@ -766,14 +769,20 @@ export function Chat({
                               </svg>
                             </button>
                           </div>
-                          <h4 className="text-[11px] text-zinc-200 leading-snug line-clamp-2 font-medium">{item.title}</h4>
-                          <div className="mt-auto">
-                            <span className="text-[10px] text-zinc-500">{item.time}</span>
-                            {item.location && item.location !== 'TBD' && (
-                              <span className="text-[10px] text-zinc-600 block truncate">{item.location}</span>
-                            )}
-                          </div>
-                          {item.sponsors && item.sponsors.length > 0 && (
+                          <h4 className={`text-[11px] leading-snug font-medium ${
+                            item.type === 'session' ? 'text-zinc-200' : 'text-purple-200'
+                          } ${height > 50 ? 'line-clamp-2' : 'line-clamp-1'}`}>
+                            {item.title}
+                          </h4>
+                          {height > 44 && (
+                            <div className="mt-auto text-[10px] text-zinc-500 truncate">
+                              {item.time}
+                            </div>
+                          )}
+                          {height > 64 && item.location && item.location !== 'TBD' && (
+                            <div className="text-[9px] text-zinc-600 truncate">{item.location}</div>
+                          )}
+                          {height > 80 && item.sponsors && item.sponsors.length > 0 && (
                             <div className="flex flex-wrap gap-0.5 mt-0.5">
                               {item.sponsors.map((s: string) => (
                                 <span key={s} className="text-[8px] bg-purple-500/10 text-purple-400/60 px-1 py-px rounded">{s}</span>
