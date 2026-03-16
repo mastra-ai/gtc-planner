@@ -511,8 +511,12 @@ export function Chat({
                 <button
                   onClick={() => {
                     setMessages([])
-                    // Delete thread + observations from memory backend
+                    // Delete thread from memory backend
                     fetch(`${API_BASE}/api/memory/threads/${encodeURIComponent(threadId)}?agentId=gtcAdvisor&resourceId=${encodeURIComponent(resourceId)}`, {
+                      method: 'DELETE',
+                    }).catch(() => {})
+                    // Delete observational memory records
+                    fetch(`${API_BASE}/api/memory/observational-memory?threadId=${encodeURIComponent(threadId)}&resourceId=${encodeURIComponent(resourceId)}`, {
                       method: 'DELETE',
                     }).catch(() => {})
                   }}
