@@ -457,9 +457,7 @@ export function Chat({
     { day: 'Thursday', date: 'Mar 20', num: 20 },
     { day: 'Friday', date: 'Mar 21', num: 21 },
   ]
-  const HOUR_HEIGHT = 80 // px per hour — taller for readability
   const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + (m || 0) }
-  const fmtHour = (h: number) => h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`
 
   const [planDay, setPlanDay] = useState(CONFERENCE_DAYS[0].day)
 
@@ -476,46 +474,6 @@ export function Chat({
       .filter(i => i.day === planDay)
       .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''))
   }, [itinerary, planDay])
-
-  // Auto-zoom: compute visible hour range from events (with 1hr padding)
-  const { hourStart, hourEnd } = useMemo(() => {
-    if (dayItems.length === 0) return { hourStart: 9, hourEnd: 18 }
-    let minH = 24, maxH = 0
-    for (const item of dayItems) {
-      const s = toMin(item.startTime || '09:00') / 60
-      const e = toMin(item.endTime || item.startTime || '10:00') / 60
-      if (s < minH) minH = s
-      if (e > maxH) maxH = e
-    }
-    return { hourStart: Math.max(0, Math.floor(minH) - 1), hourEnd: Math.min(24, Math.ceil(maxH) + 1) }
-  }, [dayItems])
-
-  // Assign columns to handle overlapping items
-  const layoutItems = useMemo(() => {
-    const items = dayItems.map(item => {
-      const start = toMin(item.startTime || '08:00')
-      const end = toMin(item.endTime || item.startTime || '09:00')
-      return { ...item, startMin: start, endMin: Math.max(end, start + 30), col: 0 }
-    })
-    const colEnds: number[][] = []
-    for (const item of items) {
-      let placed = false
-      for (let c = 0; c < colEnds.length; c++) {
-        if (colEnds[c].every(end => item.startMin >= end)) {
-          colEnds[c].push(item.endMin)
-          item.col = c
-          placed = true
-          break
-        }
-      }
-      if (!placed) {
-        item.col = colEnds.length
-        colEnds.push([item.endMin])
-      }
-    }
-    const totalCols = colEnds.length || 1
-    return items.map(item => ({ ...item, totalCols }))
-  }, [dayItems])
 
   return (
     <div className="flex flex-col h-full">
@@ -737,52 +695,41 @@ export function Chat({
                 </p>
               </div>
             ) : (
-              <div className="relative py-3" style={{ minHeight: `${(hourEnd - hourStart) * HOUR_HEIGHT + 24}px` }}>
-                {/* Hour gridlines */}
-                {Array.from({ length: hourEnd - hourStart + 1 }, (_, i) => hourStart + i).map(h => (
-                  <div
-                    key={h}
-                    className="absolute left-0 right-0 flex items-start"
-                    style={{ top: `${(h - hourStart) * HOUR_HEIGHT + 12}px` }}
-                  >
-                    <span className="text-[11px] text-zinc-600 w-14 shrink-0 text-right pr-3 -mt-2 select-none font-medium tabular-nums">
-                      {fmtHour(h)}
-                    </span>
-                    <div className="flex-1 border-t border-zinc-800/40" />
-                  </div>
-                ))}
+              <div className="py-2 px-3 space-y-2">
+                {dayItems.map((item, idx) => {
+                  const isSession = item.type === 'session'
+                  // Show gap indicator if there's dead time between events
+                  const prev = idx > 0 ? dayItems[idx - 1] : null
+                  const gapMin = prev?.endTime && item.startTime
+                    ? toMin(item.startTime) - toMin(prev.endTime)
+                    : 0
+                  const showGap = gapMin > 15
 
-                {/* Event blocks */}
-                <div className="absolute left-14 right-3 top-0 bottom-0">
-                  {layoutItems.map(item => {
-                    const top = Math.max(0, (item.startMin / 60 - hourStart) * HOUR_HEIGHT + 12)
-                    const height = Math.max(48, ((item.endMin - item.startMin) / 60) * HOUR_HEIGHT)
-                    const widthPct = 100 / item.totalCols
-                    const leftPct = item.col * widthPct
-                    const isSession = item.type === 'session'
-
-                    return (
+                  return (
+                    <div key={item.id}>
+                      {showGap && (
+                        <div className="flex items-center gap-2 py-1">
+                          <div className="flex-1 border-t border-dashed border-zinc-800/60" />
+                          <span className="text-[10px] text-zinc-600 tabular-nums">
+                            {gapMin >= 60 ? `${Math.floor(gapMin / 60)}h ${gapMin % 60 > 0 ? `${gapMin % 60}m` : ''}` : `${gapMin}m`} gap
+                          </span>
+                          <div className="flex-1 border-t border-dashed border-zinc-800/60" />
+                        </div>
+                      )}
                       <div
-                        key={item.id}
-                        className={`absolute rounded-xl border group transition-all duration-150 ${
+                        className={`rounded-xl border group transition-all duration-150 relative ${
                           isSession
                             ? 'bg-nv/6 border-nv/15 hover:bg-nv/12 hover:border-nv/30'
                             : 'bg-purple-500/6 border-purple-500/15 hover:bg-purple-500/12 hover:border-purple-500/30'
                         }`}
-                        style={{
-                          top: `${top}px`,
-                          minHeight: `${height}px`,
-                          left: `${leftPct}%`,
-                          width: `calc(${widthPct}% - 6px)`,
-                        }}
                       >
                         {/* Colored left accent bar */}
                         <div className={`absolute left-0 top-2 bottom-2 w-[3px] rounded-full ${
                           isSession ? 'bg-nv/50' : 'bg-purple-400/50'
                         }`} />
 
-                        <div className="pl-3 pr-2 py-1.5">
-                          {/* Top row: type + code + conflict + remove */}
+                        <div className="pl-3 pr-2 py-2">
+                          {/* Top row: type + code + remove */}
                           <div className="flex items-center gap-1.5 mb-0.5">
                             <span className={`text-[10px] font-semibold uppercase tracking-wide ${
                               isSession ? 'text-nv/60' : 'text-purple-400/60'
@@ -791,13 +738,6 @@ export function Chat({
                             </span>
                             {item.code && (
                               <span className="text-[10px] font-mono text-zinc-600">{item.code}</span>
-                            )}
-                            {item.totalCols > 1 && (
-                              <span className="flex items-center gap-0.5 text-[10px] text-amber-400/80 font-medium" title="Time conflict">
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-                                </svg>
-                              </span>
                             )}
                             <button
                               onClick={() => onRemoveItineraryItem(item.id)}
@@ -818,12 +758,12 @@ export function Chat({
                           </h4>
 
                           {/* Details */}
-                          <div className="mt-1 space-y-0.5">
+                          <div className="mt-1.5 space-y-0.5">
                             <div className="flex items-center gap-1.5 text-[11px] text-zinc-400">
                               <svg className="w-3 h-3 shrink-0 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                               </svg>
-                              <span className="truncate">{item.time}</span>
+                              <span>{item.time}</span>
                             </div>
                             {item.location && item.location !== 'TBD' && (
                               <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
@@ -844,9 +784,9 @@ export function Chat({
                           </div>
                         </div>
                       </div>
-                    )
-                  })}
-                </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
