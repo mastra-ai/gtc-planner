@@ -225,7 +225,7 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`flex-1 flex flex-col items-center gap-0.5 pt-2 pb-1.5 transition relative cursor-pointer ${
+      className={`flex-1 flex flex-col items-center gap-0.5 pt-2.5 pb-2 transition relative cursor-pointer ${
         active ? 'text-nv' : 'text-zinc-500'
       }`}
     >
