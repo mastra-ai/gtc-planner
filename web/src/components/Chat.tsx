@@ -13,8 +13,8 @@ const DAY_ORDER: Record<string, number> = {
 }
 
 const MODELS = [
-  { id: 'nvidia/nemotron-3-super-120b-a12b:free', label: 'Nemotron Super 120B' },
   { id: 'nvidia/nemotron-3-nano-30b-a3b:free', label: 'Nemotron Nano 30B' },
+  { id: 'nvidia/nemotron-3-super-120b-a12b:free', label: 'Nemotron Super 120B' },
 ]
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4111'

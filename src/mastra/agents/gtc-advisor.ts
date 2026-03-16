@@ -95,7 +95,7 @@ export const gtcAdvisor = new Agent({
   id: "gtc-advisor",
   name: "GTC 2026 Session Advisor",
   instructions: BASE_INSTRUCTIONS,
-  model: "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
+  model: "openrouter/nvidia/nemotron-3-nano-30b-a3b:free",
   memory,
   tools: {
     searchSessions,
