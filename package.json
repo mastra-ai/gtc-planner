@@ -4,7 +4,7 @@
   "private": true,
   "description": "AI agent to help NVIDIA GTC 2026 attendees choose sessions based on preferences",
   "scripts": {
-    "dev": "concurrently -n api,web -c green,cyan \"cd api && mastra dev\" \"npm run dev --prefix web\""
+    "dev": "concurrently -n api,web -c green,cyan \"cd api && npx mastra dev\" \"npm run dev --prefix web\""
   },
   "engines": {
     "node": ">=20"
