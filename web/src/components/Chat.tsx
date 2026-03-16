@@ -206,6 +206,63 @@ function getToolState(part: any): string {
   return 'pending'
 }
 
+function formatToolData(data: unknown): string {
+  if (data === undefined || data === null) return ''
+  try {
+    const str = typeof data === 'string' ? data : JSON.stringify(data, null, 2)
+    // Truncate very large outputs
+    if (str.length > 2000) return str.slice(0, 2000) + '\n…truncated'
+    return str
+  } catch {
+    return String(data)
+  }
+}
+
+function ToolCallItem({ part }: { part: any }) {
+  const [expanded, setExpanded] = useState(false)
+  const name = getToolName(part)
+  const state = getToolState(part)
+  const input = part.input ?? part.args
+  const result = part.result
+
+  return (
+    <div className="rounded-lg border border-zinc-800/60 overflow-hidden">
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="flex items-center gap-1.5 text-[11px] text-zinc-500 px-2 py-1.5 w-full hover:bg-zinc-800/30 transition cursor-pointer"
+      >
+        <svg className="w-3 h-3 text-nv/60 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
+        </svg>
+        <span className="text-zinc-400 font-medium">{name}</span>
+        {state === 'result' && <span className="text-nv/60">done</span>}
+        {state !== 'result' && <span className="text-yellow-500/60 animate-pulse">running</span>}
+        <svg className={`w-3 h-3 ml-auto text-zinc-600 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+      {expanded && (
+        <div className="border-t border-zinc-800/60 text-[11px] font-mono max-h-60 overflow-y-auto">
+          {input !== undefined && (
+            <div className="px-2 py-1.5 border-b border-zinc-800/40">
+              <span className="text-zinc-500 font-sans text-[10px] uppercase tracking-wide">Input</span>
+              <pre className="mt-0.5 text-zinc-400 whitespace-pre-wrap break-all">{formatToolData(input)}</pre>
+            </div>
+          )}
+          {state === 'result' && result !== undefined ? (
+            <div className="px-2 py-1.5">
+              <span className="text-zinc-500 font-sans text-[10px] uppercase tracking-wide">Output</span>
+              <pre className="mt-0.5 text-nv/70 whitespace-pre-wrap break-all">{formatToolData(result)}</pre>
+            </div>
+          ) : state !== 'result' && (
+            <div className="px-2 py-1.5 text-zinc-600 font-sans italic">Waiting for result...</div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const MessageBubble = memo(function MessageBubble({ message }: { message: UIMessage }) {
   const textParts = message.parts?.filter(p => p.type === 'text') ?? []
   const toolParts = message.parts?.filter(p => isToolPart(p)) ?? []
@@ -215,21 +272,9 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: UIMess
 
   return (
     <div className="flex flex-col gap-1">
-      {toolParts.map((part, i) => {
-        const name = getToolName(part)
-        const state = getToolState(part)
-        return (
-          <div key={`t-${i}`} className="flex items-center gap-1.5 text-[11px] text-zinc-500 px-1">
-            <svg className="w-3 h-3 text-nv/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
-            </svg>
-            <span className="text-zinc-400">{name}</span>
-            {state === 'result' && <span className="text-nv/60">done</span>}
-            {state === 'call' && <span className="text-yellow-500/60 animate-pulse">running</span>}
-            {state === 'pending' && <span className="text-yellow-500/60 animate-pulse">running</span>}
-          </div>
-        )
-      })}
+      {toolParts.map((part, i) => (
+        <ToolCallItem key={`t-${i}`} part={part} />
+      ))}
 
       {textParts.map((part, i) => {
         if (!(part as any).text?.trim()) return null
