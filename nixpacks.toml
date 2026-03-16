@@ -1,0 +1,8 @@
+[phases.install]
+cmds = ["npm install"]
+
+[phases.build]
+cmds = ["npx mastra build && mkdir -p .mastra/output/src/data && cp src/data/sessions.json .mastra/output/src/data/"]
+
+[start]
+cmd = "npx mastra start"
