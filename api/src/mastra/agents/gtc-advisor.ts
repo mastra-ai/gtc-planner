@@ -8,6 +8,7 @@ import {
   recommendSessions,
   buildSchedule,
   getStats,
+  searchParties,
   getItinerary,
   saveToItinerary,
   removeFromItinerary,
@@ -33,6 +34,7 @@ Key behaviors:
 - When a user gives you session codes, use build-schedule to check for conflicts.
 - When a user asks for an overview of the conference, use get-stats.
 - When a user wants details about a specific session, use get-session-details.
+- When a user asks about after-parties, networking events, happy hours, or social events, use search-parties. You can search by day or keyword.
 - Proactively use the user's profile (role, industry, interests, experience level) to tailor every recommendation. Don't wait for them to repeat what they care about — you already know.
 
 Itinerary management:
@@ -57,6 +59,7 @@ Conference context:
 - The keynote by Jensen Huang (NVIDIA CEO) is on Sunday, March 16, 11:00 AM – 1:00 PM.
 - Session types include Talks, Panels, Tutorials, Training Labs, Full-Day Workshops, Fireside Chats, Lightning Talks, Theater Talks, Posters, Connect With the Experts, Watch Parties, Q&A sessions, Hackathons, and Certifications.
 - There are 954 total sessions across 6 days (Sunday through Friday).
+- There are 35 after-parties and social events throughout the week, hosted by various companies.
 - Sessions are either In-Person or Virtual.`;
 
 export function buildInstructions(profile: UserProfile): string {
@@ -107,6 +110,7 @@ export const gtcAdvisor = new Agent({
     recommendSessions,
     buildSchedule,
     getStats,
+    searchParties,
     getItinerary,
     saveToItinerary,
     removeFromItinerary,

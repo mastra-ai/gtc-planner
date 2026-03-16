@@ -3,21 +3,20 @@ import { z } from "zod";
 import { readFileSync, existsSync } from "fs";
 import { join, resolve } from "path";
 
-function findSessionsFile(): string {
-  // Try several known locations since Mastra bundles change cwd
+function findDataFile(filename: string): string {
   const candidates = [
-    join(process.cwd(), "src/data/sessions.json"),
-    join(process.cwd(), "../src/data/sessions.json"),
-    join(process.cwd(), "../../src/data/sessions.json"),
-    join(process.cwd(), "../../../src/data/sessions.json"),
-    "/app/src/data/sessions.json",
-    resolve("src/data/sessions.json"),
+    join(process.cwd(), `src/data/${filename}`),
+    join(process.cwd(), `../src/data/${filename}`),
+    join(process.cwd(), `../../src/data/${filename}`),
+    join(process.cwd(), `../../../src/data/${filename}`),
+    `/app/src/data/${filename}`,
+    resolve(`src/data/${filename}`),
   ];
   for (const p of candidates) {
     if (existsSync(p)) return p;
   }
   throw new Error(
-    `sessions.json not found. Tried: ${candidates.join(", ")}. cwd=${process.cwd()}`
+    `${filename} not found. Tried: ${candidates.join(", ")}. cwd=${process.cwd()}`
   );
 }
 
@@ -42,7 +41,24 @@ interface Session {
 }
 
 const sessions: Session[] = JSON.parse(
-  readFileSync(findSessionsFile(), "utf-8")
+  readFileSync(findDataFile("sessions.json"), "utf-8")
+);
+
+interface Party {
+  id: string;
+  day: string;
+  date: string;
+  time: string;
+  sponsors: string[];
+  title: string;
+  rsvpUrl: string;
+  location: string;
+  inviteOnly: boolean;
+  description?: string;
+}
+
+const parties: Party[] = JSON.parse(
+  readFileSync(findDataFile("parties.json"), "utf-8")
 );
 
 function matchesQuery(session: Session, query: string): boolean {
@@ -355,6 +371,68 @@ export const buildSchedule = createTool({
         room: s.schedule[0]?.room || "TBD",
       })),
       conflicts,
+    };
+  },
+});
+
+// ── Party Tools ──
+
+export const searchParties = createTool({
+  id: "search-parties",
+  description:
+    "Search after-parties and social events happening during GTC week. Search by day, sponsor, topic, or keyword.",
+  inputSchema: z.object({
+    query: z
+      .string()
+      .optional()
+      .describe("Search term to match against party title, sponsors, location, or description"),
+    day: z
+      .string()
+      .optional()
+      .describe("Filter by day of week (e.g., 'Monday', 'Tuesday')"),
+  }),
+  outputSchema: z.object({
+    count: z.number(),
+    parties: z.array(z.any()),
+  }),
+  execute: async ({ context: { input } }) => {
+    let results = [...parties];
+
+    if (input.day) {
+      const d = input.day.toLowerCase();
+      results = results.filter((p) => p.day.toLowerCase() === d);
+    }
+
+    if (input.query) {
+      const q = input.query.toLowerCase();
+      const terms = q.split(/\s+/).filter(Boolean);
+      results = results.filter((p) => {
+        const searchable = [
+          p.title,
+          p.description || "",
+          p.location,
+          ...p.sponsors,
+        ]
+          .join(" ")
+          .toLowerCase();
+        return terms.every((term: string) => searchable.includes(term));
+      });
+    }
+
+    return {
+      count: results.length,
+      parties: results.map((p) => ({
+        id: p.id,
+        title: p.title,
+        day: p.day,
+        date: p.date,
+        time: p.time,
+        location: p.location,
+        sponsors: p.sponsors,
+        inviteOnly: p.inviteOnly,
+        description: p.description,
+        rsvpUrl: p.rsvpUrl,
+      })),
     };
   },
 });

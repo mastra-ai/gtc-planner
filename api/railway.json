@@ -2,7 +2,7 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "npm install && npx mastra build && mkdir -p .mastra/output/src/data && cp src/data/sessions.json .mastra/output/src/data/"
+    "buildCommand": "npm install && npx mastra build && mkdir -p .mastra/output/src/data && cp src/data/sessions.json src/data/parties.json .mastra/output/src/data/"
   },
   "deploy": {
     "startCommand": "npx mastra start",
