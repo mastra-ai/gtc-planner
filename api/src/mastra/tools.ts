@@ -497,58 +497,69 @@ export const getItinerary = createTool({
 export const saveToItinerary = createTool({
   id: "save-to-itinerary",
   description:
-    "Add a session or party to the user's itinerary. Provide the item details. The tool checks for time conflicts with existing items and returns the updated itinerary. Use this when the user says they want to attend a session or party, or when building their schedule.",
+    "Add one or more sessions/parties to the user's itinerary. Supports bulk additions — pass an array of items to add multiple at once. The tool checks for time conflicts and deduplicates. Use this when the user wants to attend sessions or parties, or when building their schedule.",
   inputSchema: z.object({
     currentItinerary: itinerarySchema.describe("The user's current itinerary (passed from frontend)"),
-    item: itineraryItemSchema.describe("The item to add"),
+    item: itineraryItemSchema.optional().describe("Single item to add (use 'items' for bulk)"),
+    items: z.array(itineraryItemSchema).optional().describe("Multiple items to add at once"),
   }),
   outputSchema: z.object({
     updatedItinerary: itinerarySchema,
-    added: itineraryItemSchema,
+    added: z.array(itineraryItemSchema),
     conflicts: z.array(z.object({
+      newItem: z.string(),
       existingItem: z.string(),
       existingTime: z.string(),
     })),
     action: z.literal("save-itinerary"),
   }),
-  execute: async ({ currentItinerary, item }: { currentItinerary: ItineraryItem[]; item: ItineraryItem }) => {
-    // Check for duplicates
-    if (currentItinerary.some((i: ItineraryItem) => i.id === item.id)) {
-      return {
-        updatedItinerary: currentItinerary,
-        added: item,
-        conflicts: [],
-        action: "save-itinerary" as const,
-      };
+  execute: async ({ currentItinerary, item, items }: { currentItinerary: ItineraryItem[]; item?: ItineraryItem; items?: ItineraryItem[] }) => {
+    const toAdd = items || (item ? [item] : []);
+    if (toAdd.length === 0) {
+      return { updatedItinerary: currentItinerary, added: [], conflicts: [], action: "save-itinerary" as const };
     }
 
-    // Check for time conflicts on same day using actual time overlap
     const toMin = (t: string) => {
       const [h, m] = t.split(":").map(Number);
       return h * 60 + (m || 0);
     };
-    const conflicts = currentItinerary
-      .filter((i: ItineraryItem) => i.day === item.day)
-      .filter((existing: ItineraryItem) => {
-        if (!existing.startTime || !existing.endTime || !item.startTime || !item.endTime) {
-          return existing.time === item.time;
-        }
-        const aStart = toMin(existing.startTime);
-        const aEnd = toMin(existing.endTime);
-        const bStart = toMin(item.startTime);
-        const bEnd = toMin(item.endTime);
-        return aStart < bEnd && bStart < aEnd;
-      })
-      .map((existing: ItineraryItem) => ({
-        existingItem: existing.title,
-        existingTime: existing.time,
-      }));
 
-    const updated = [...currentItinerary, item];
+    let updated = [...currentItinerary];
+    const added: ItineraryItem[] = [];
+    const allConflicts: { newItem: string; existingItem: string; existingTime: string }[] = [];
+
+    for (const newItem of toAdd) {
+      // Skip duplicates
+      if (updated.some((i: ItineraryItem) => i.id === newItem.id)) continue;
+
+      // Check for time conflicts
+      const conflicts = updated
+        .filter((i: ItineraryItem) => i.day === newItem.day)
+        .filter((existing: ItineraryItem) => {
+          if (!existing.startTime || !existing.endTime || !newItem.startTime || !newItem.endTime) {
+            return existing.time === newItem.time;
+          }
+          const aStart = toMin(existing.startTime);
+          const aEnd = toMin(existing.endTime);
+          const bStart = toMin(newItem.startTime);
+          const bEnd = toMin(newItem.endTime);
+          return aStart < bEnd && bStart < aEnd;
+        })
+        .map((existing: ItineraryItem) => ({
+          newItem: newItem.title,
+          existingItem: existing.title,
+          existingTime: existing.time,
+        }));
+
+      allConflicts.push(...conflicts);
+      updated.push(newItem);
+      added.push(newItem);
+    }
+
     return {
       updatedItinerary: updated,
-      added: item,
-      conflicts,
+      added,
+      conflicts: allConflicts,
       action: "save-itinerary" as const,
     };
   },
