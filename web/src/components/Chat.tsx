@@ -666,7 +666,7 @@ export function Chat({
           </div>
 
           {/* Input */}
-          <form onSubmit={handleSubmit} className="p-2 sm:p-3 border-t border-zinc-800 shrink-0">
+          <form onSubmit={handleSubmit} className="p-3 border-t border-zinc-800 shrink-0">
             <div className="flex gap-2">
               <input
                 type="text"
@@ -674,12 +674,12 @@ export function Chat({
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask about GTC sessions..."
                 disabled={status !== 'ready'}
-                className="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-nv"
+                className="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-nv"
               />
               <button
                 type="submit"
                 disabled={status !== 'ready' || !input.trim()}
-                className="bg-nv hover:bg-nv-dim disabled:bg-zinc-700 text-zinc-950 text-sm font-medium px-3 sm:px-4 py-2 rounded-lg transition shrink-0"
+                className="bg-nv hover:bg-nv-dim disabled:bg-zinc-700 text-zinc-950 text-sm font-semibold px-4 py-3 rounded-xl transition shrink-0 min-w-[52px]"
               >
                 Send
               </button>

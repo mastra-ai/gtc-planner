@@ -156,7 +156,7 @@ export function EventsPanel({
             <button
               key={s.id}
               onClick={() => onSelectSession(s)}
-              className={`w-full text-left px-3 py-2.5 border-b border-zinc-800/50 transition cursor-pointer ${
+              className={`w-full text-left px-3 py-3 border-b border-zinc-800/50 transition cursor-pointer active:bg-zinc-800/60 ${
                 selectedSessionId === s.id
                   ? 'bg-zinc-800/80 border-l-2 border-l-nv'
                   : 'hover:bg-zinc-900/80 border-l-2 border-l-transparent'
@@ -207,10 +207,10 @@ export function EventsPanel({
               {items.map((p) => (
                 <div
                   key={p.id}
-                  className={`border-b border-zinc-800/50 hover:bg-zinc-900/80 transition cursor-pointer ${selectedPartyId === p.id ? 'bg-zinc-800/80 border-l-2 border-l-nv' : ''}`}
+                  className={`border-b border-zinc-800/50 hover:bg-zinc-900/80 active:bg-zinc-800/60 transition cursor-pointer ${selectedPartyId === p.id ? 'bg-zinc-800/80 border-l-2 border-l-nv' : ''}`}
                   onClick={() => onSelectParty(p)}
                 >
-                  <div className="px-3 py-2.5">
+                  <div className="px-3 py-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <h3 className="text-sm text-zinc-200 leading-snug line-clamp-2">{p.title}</h3>
