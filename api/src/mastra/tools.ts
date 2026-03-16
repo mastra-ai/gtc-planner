@@ -395,16 +395,16 @@ export const searchParties = createTool({
     count: z.number(),
     parties: z.array(z.any()),
   }),
-  execute: async ({ context: { input } }) => {
+  execute: async ({ query, day }: { query?: string; day?: string }) => {
     let results = [...parties];
 
-    if (input.day) {
-      const d = input.day.toLowerCase();
+    if (day) {
+      const d = day.toLowerCase();
       results = results.filter((p) => p.day.toLowerCase() === d);
     }
 
-    if (input.query) {
-      const q = input.query.toLowerCase();
+    if (query) {
+      const q = query.toLowerCase();
       const terms = q.split(/\s+/).filter(Boolean);
       results = results.filter((p) => {
         const searchable = [

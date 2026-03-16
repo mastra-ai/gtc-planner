@@ -1,8 +1,8 @@
 [phases.install]
-cmds = ["npm install --force"]
+cmds = ["npm i -g pnpm && pnpm install"]
 
 [phases.build]
-cmds = ["npm run build"]
+cmds = ["pnpm run build"]
 
 [start]
 cmd = "npx serve dist -s -l $PORT"
