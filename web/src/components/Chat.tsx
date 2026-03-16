@@ -455,6 +455,7 @@ export function Chat({
     { day: 'Tuesday', date: 'Mar 18', num: 18 },
     { day: 'Wednesday', date: 'Mar 19', num: 19 },
     { day: 'Thursday', date: 'Mar 20', num: 20 },
+    { day: 'Friday', date: 'Mar 21', num: 21 },
   ]
   const HOUR_HEIGHT = 80 // px per hour — taller for readability
   const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + (m || 0) }
