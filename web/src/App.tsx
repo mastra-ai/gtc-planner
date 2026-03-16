@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import type { UserProfile, Session, Party, ItineraryItem } from './types'
 import { Onboarding } from './components/Onboarding'
 import { EventsPanel } from './components/EventsPanel'
@@ -39,6 +39,23 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false)
   const [itinerary, setItinerary] = useState<ItineraryItem[]>(loadItinerary)
 
+  // Lookup maps for resolving itinerary items → full session/party objects
+  const sessionsMap = useRef<Map<string, Session>>(new Map())
+  const partiesMap = useRef<Map<string, Party>>(new Map())
+
+  useEffect(() => {
+    fetch('/sessions.json').then(r => r.json()).then((data: Session[]) => {
+      const map = new Map<string, Session>()
+      for (const s of data) map.set(s.id, s)
+      sessionsMap.current = map
+    })
+    fetch('/parties.json').then(r => r.json()).then((data: Party[]) => {
+      const map = new Map<string, Party>()
+      for (const p of data) map.set(p.id, p)
+      partiesMap.current = map
+    })
+  }, [])
+
   const handleProfile = (p: UserProfile) => {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(p))
     setProfile(p)
@@ -68,6 +85,16 @@ export default function App() {
     setDetailType('party')
     setMobileTab('detail')
   }
+
+  const handleSelectItineraryItem = useCallback((item: ItineraryItem) => {
+    if (item.type === 'session') {
+      const session = sessionsMap.current.get(item.id)
+      if (session) handleSelectSession(session)
+    } else {
+      const party = partiesMap.current.get(item.id)
+      if (party) handleSelectParty(party)
+    }
+  }, [])
 
   if (!profile) {
     return <Onboarding onComplete={handleProfile} />
@@ -138,7 +165,7 @@ export default function App() {
         <div className={`lg:flex-1 lg:min-w-0 overflow-hidden
           ${mobileTab === 'chat' ? 'w-full' : 'hidden'} lg:block`}
         >
-          <Chat profile={profile} itinerary={itinerary} onItineraryChange={handleItineraryChange} onRemoveItineraryItem={handleRemoveFromItinerary} />
+          <Chat profile={profile} itinerary={itinerary} onItineraryChange={handleItineraryChange} onRemoveItineraryItem={handleRemoveFromItinerary} onSelectItineraryItem={handleSelectItineraryItem} />
         </div>
       </div>
 

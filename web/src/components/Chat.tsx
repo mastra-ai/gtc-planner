@@ -379,11 +379,13 @@ export function Chat({
   itinerary,
   onItineraryChange,
   onRemoveItineraryItem,
+  onSelectItineraryItem,
 }: {
   profile: UserProfile
   itinerary: ItineraryItem[]
   onItineraryChange: (items: ItineraryItem[]) => void
   onRemoveItineraryItem: (id: string) => void
+  onSelectItineraryItem?: (item: ItineraryItem) => void
 }) {
   const [input, setInput] = useState('')
   const [model, setModel] = useState(MODELS[0].id)
@@ -717,7 +719,8 @@ export function Chat({
                         </div>
                       )}
                       <div
-                        className={`rounded-xl border group transition-all duration-150 relative ${
+                        onClick={() => onSelectItineraryItem?.(item)}
+                        className={`rounded-xl border group transition-all duration-150 relative cursor-pointer ${
                           isSession
                             ? 'bg-nv/6 border-nv/15 hover:bg-nv/12 hover:border-nv/30'
                             : 'bg-purple-500/6 border-purple-500/15 hover:bg-purple-500/12 hover:border-purple-500/30'
@@ -740,7 +743,7 @@ export function Chat({
                               <span className="text-[10px] font-mono text-zinc-600">{item.code}</span>
                             )}
                             <button
-                              onClick={() => onRemoveItineraryItem(item.id)}
+                              onClick={(e) => { e.stopPropagation(); onRemoveItineraryItem(item.id) }}
                               className="ml-auto text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all shrink-0 cursor-pointer p-0.5"
                               title="Remove from plan"
                             >
