@@ -764,14 +764,14 @@ export function Chat({
                     return (
                       <div
                         key={item.id}
-                        className={`absolute rounded-xl border overflow-hidden group transition-all duration-150 ${
+                        className={`absolute rounded-xl border group transition-all duration-150 ${
                           isSession
                             ? 'bg-nv/6 border-nv/15 hover:bg-nv/12 hover:border-nv/30'
                             : 'bg-purple-500/6 border-purple-500/15 hover:bg-purple-500/12 hover:border-purple-500/30'
                         }`}
                         style={{
                           top: `${top}px`,
-                          height: `${height}px`,
+                          minHeight: `${height}px`,
                           left: `${leftPct}%`,
                           width: `calc(${widthPct}% - 6px)`,
                         }}
@@ -781,9 +781,9 @@ export function Chat({
                           isSession ? 'bg-nv/50' : 'bg-purple-400/50'
                         }`} />
 
-                        <div className="pl-3 pr-2 py-2 h-full flex flex-col overflow-hidden">
+                        <div className="pl-3 pr-2 py-1.5">
                           {/* Top row: type + code + conflict + remove */}
-                          <div className="flex items-center gap-1.5 shrink-0 mb-0.5">
+                          <div className="flex items-center gap-1.5 mb-0.5">
                             <span className={`text-[10px] font-semibold uppercase tracking-wide ${
                               isSession ? 'text-nv/60' : 'text-purple-400/60'
                             }`}>
@@ -811,21 +811,21 @@ export function Chat({
                           </div>
 
                           {/* Title */}
-                          <h4 className={`text-[13px] leading-tight font-medium ${
+                          <h4 className={`text-[13px] leading-snug font-medium ${
                             isSession ? 'text-zinc-200' : 'text-purple-200'
-                          } ${height > 60 ? 'line-clamp-2' : 'line-clamp-1'}`}>
+                          }`}>
                             {item.title}
                           </h4>
 
-                          {/* Details pushed to bottom */}
-                          <div className="mt-auto pt-1 space-y-0.5">
+                          {/* Details */}
+                          <div className="mt-1 space-y-0.5">
                             <div className="flex items-center gap-1.5 text-[11px] text-zinc-400">
                               <svg className="w-3 h-3 shrink-0 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                               </svg>
                               <span className="truncate">{item.time}</span>
                             </div>
-                            {height > 68 && item.location && item.location !== 'TBD' && (
+                            {item.location && item.location !== 'TBD' && (
                               <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
                                 <svg className="w-3 h-3 shrink-0 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
@@ -834,7 +834,7 @@ export function Chat({
                                 <span className="truncate">{item.location}</span>
                               </div>
                             )}
-                            {height > 90 && item.sponsors && item.sponsors.length > 0 && (
+                            {item.sponsors && item.sponsors.length > 0 && (
                               <div className="flex flex-wrap gap-1 pt-0.5">
                                 {item.sponsors.map((s: string) => (
                                   <span key={s} className="text-[10px] bg-purple-500/10 text-purple-300/70 px-1.5 py-0.5 rounded-md">{s}</span>
