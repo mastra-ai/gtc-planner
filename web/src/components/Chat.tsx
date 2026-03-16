@@ -201,9 +201,13 @@ function getToolName(part: any): string {
 }
 
 function getToolState(part: any): string {
-  if (part.result !== undefined) return 'result'
-  if (part.input !== undefined || part.args !== undefined) return 'call'
+  if (part.state === 'output-available' || part.output !== undefined || part.result !== undefined) return 'result'
+  if (part.state === 'input-available' || part.input !== undefined || part.args !== undefined) return 'call'
   return 'pending'
+}
+
+function getToolOutput(part: any): any {
+  return part.output ?? part.result
 }
 
 function formatToolData(data: unknown): string {
@@ -223,7 +227,7 @@ function ToolCallItem({ part }: { part: any }) {
   const name = getToolName(part)
   const state = getToolState(part)
   const input = part.input ?? part.args
-  const result = part.result
+  const result = getToolOutput(part)
 
   return (
     <div className="rounded-lg border border-zinc-800/60 overflow-hidden">
@@ -424,9 +428,9 @@ export function Chat({
       if (msg.role !== 'assistant') continue
       for (const part of msg.parts ?? []) {
         if (!isToolPart(part)) continue
-        const p = part as any
-        if (p.result?.action === 'save-itinerary') {
-          const updated = p.result.updatedItinerary
+        const output = getToolOutput(part)
+        if (output?.action === 'save-itinerary') {
+          const updated = output.updatedItinerary
           if (Array.isArray(updated)) {
             onItineraryChange(updated)
           }
