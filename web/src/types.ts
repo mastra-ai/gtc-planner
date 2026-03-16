@@ -36,7 +36,10 @@ export interface ItineraryItem {
   type: 'session' | 'party';
   title: string;
   day: string;
+  date: string;
   time: string;
+  startTime: string;
+  endTime: string;
   location?: string;
   code?: string;
   sessionType?: string;

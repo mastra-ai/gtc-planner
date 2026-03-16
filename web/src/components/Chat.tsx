@@ -8,9 +8,7 @@ import type { UserProfile, ItineraryItem } from '../types'
 
 type ChatTab = 'chat' | 'plan'
 
-const DAY_ORDER: Record<string, number> = {
-  Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5,
-}
+
 
 const MODELS = [
   { id: 'nvidia/nemotron-3-nano-30b-a3b:free', label: 'Nemotron Nano 30B' },
@@ -450,21 +448,64 @@ export function Chat({
     setInput('')
   }
 
-  // Grouped itinerary for plan tab
-  const groupedItinerary = useMemo(() => {
-    const sorted = [...itinerary].sort((a, b) => {
-      const da = DAY_ORDER[a.day] ?? 9
-      const db = DAY_ORDER[b.day] ?? 9
-      if (da !== db) return da - db
-      return (a.time ?? '').localeCompare(b.time ?? '')
-    })
-    const groups: Record<string, ItineraryItem[]> = {}
-    for (const item of sorted) {
-      if (!groups[item.day]) groups[item.day] = []
-      groups[item.day].push(item)
+  // Calendar data for plan tab
+  const CONFERENCE_DAYS = [
+    { day: 'Sunday', date: 'Mar 16', full: 'March 16, 2026' },
+    { day: 'Monday', date: 'Mar 17', full: 'March 17, 2026' },
+    { day: 'Tuesday', date: 'Mar 18', full: 'March 18, 2026' },
+    { day: 'Wednesday', date: 'Mar 19', full: 'March 19, 2026' },
+    { day: 'Thursday', date: 'Mar 20', full: 'March 20, 2026' },
+    { day: 'Friday', date: 'Mar 21', full: 'March 21, 2026' },
+  ]
+  const HOUR_START = 8  // 8 AM
+  const HOUR_END = 22   // 10 PM
+  const HOUR_HEIGHT = 60 // px per hour
+  const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + (m || 0) }
+  const fmtHour = (h: number) => h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`
+
+  const [planDay, setPlanDay] = useState(CONFERENCE_DAYS[0].day)
+
+  const dayItemCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const item of itinerary) {
+      counts[item.day] = (counts[item.day] || 0) + 1
     }
-    return groups
+    return counts
   }, [itinerary])
+
+  const dayItems = useMemo(() => {
+    return itinerary
+      .filter(i => i.day === planDay)
+      .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''))
+  }, [itinerary, planDay])
+
+  // Assign columns to handle overlapping items
+  const layoutItems = useMemo(() => {
+    const items = dayItems.map(item => {
+      const start = toMin(item.startTime || '08:00')
+      const end = toMin(item.endTime || item.startTime || '09:00')
+      return { ...item, startMin: start, endMin: Math.max(end, start + 30), col: 0 }
+    })
+    // Greedy column packing: place each item in first column where it doesn't overlap
+    const colEnds: number[][] = [] // colEnds[c] = array of endMin values in that column
+    for (const item of items) {
+      let placed = false
+      for (let c = 0; c < colEnds.length; c++) {
+        if (colEnds[c].every(end => item.startMin >= end)) {
+          colEnds[c].push(item.endMin)
+          item.col = c
+          placed = true
+          break
+        }
+      }
+      if (!placed) {
+        item.col = colEnds.length
+        colEnds.push([item.endMin])
+      }
+    }
+    const totalCols = colEnds.length || 1
+    return items.map(item => ({ ...item, totalCols }))
+  }, [dayItems])
 
   return (
     <div className="flex flex-col h-full">
@@ -626,77 +667,127 @@ export function Chat({
         </>
       )}
 
-      {/* Plan (itinerary) view */}
+      {/* Plan (calendar) view */}
       {tab === 'plan' && (
-        <div className="flex-1 overflow-y-auto">
-          {itinerary.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center px-6">
-              <svg className="w-8 h-8 text-zinc-700 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-              </svg>
-              <p className="text-xs text-zinc-500 leading-relaxed">
-                No items yet. Switch to <button onClick={() => setTab('chat')} className="text-nv hover:underline cursor-pointer">Chat</button> and ask <span className="text-nv">nemo</span> to build your schedule.
-              </p>
-            </div>
-          ) : (
-            Object.entries(groupedItinerary).map(([day, dayItems]) => (
-              <div key={day}>
-                <div className="sticky top-0 bg-zinc-950/90 backdrop-blur-sm px-3 py-1.5 border-b border-zinc-800">
-                  <span className="text-[11px] font-medium text-zinc-400">{day}</span>
-                  <span className="text-[10px] text-zinc-600 ml-1.5">{dayItems.length} item{dayItems.length !== 1 ? 's' : ''}</span>
-                </div>
-                {dayItems.map((item) => (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Day selector */}
+          <div className="flex gap-1 px-2 py-2 border-b border-zinc-800 overflow-x-auto shrink-0">
+            {CONFERENCE_DAYS.map(d => {
+              const count = dayItemCounts[d.day] || 0
+              return (
+                <button
+                  key={d.day}
+                  onClick={() => setPlanDay(d.day)}
+                  className={`flex flex-col items-center px-2.5 py-1.5 rounded-lg text-[11px] transition cursor-pointer whitespace-nowrap shrink-0 ${
+                    planDay === d.day
+                      ? 'bg-nv/15 text-nv'
+                      : 'text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-400'
+                  }`}
+                >
+                  <span className="font-medium">{d.day.slice(0, 3)}</span>
+                  <span className={`text-[10px] ${planDay === d.day ? 'text-nv/70' : 'text-zinc-600'}`}>{d.date}</span>
+                  {count > 0 && (
+                    <span className={`mt-0.5 text-[9px] px-1.5 py-px rounded-full ${
+                      planDay === d.day ? 'bg-nv/20 text-nv' : 'bg-zinc-800 text-zinc-500'
+                    }`}>{count}</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Timeline */}
+          <div className="flex-1 overflow-y-auto">
+            {dayItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center px-6">
+                <svg className="w-8 h-8 text-zinc-700 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                </svg>
+                <p className="text-xs text-zinc-500 leading-relaxed">
+                  Nothing on {planDay} yet. Switch to <button onClick={() => setTab('chat')} className="text-nv hover:underline cursor-pointer">Chat</button> and ask <span className="text-nv">nemo</span> to build your schedule.
+                </p>
+              </div>
+            ) : (
+              <div className="relative" style={{ minHeight: `${(HOUR_END - HOUR_START) * HOUR_HEIGHT + 40}px` }}>
+                {/* Hour gridlines */}
+                {Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, i) => HOUR_START + i).map(h => (
                   <div
-                    key={item.id}
-                    className="px-3 py-2.5 border-b border-zinc-800/50 hover:bg-zinc-900/50 transition group"
+                    key={h}
+                    className="absolute left-0 right-0 flex items-start"
+                    style={{ top: `${(h - HOUR_START) * HOUR_HEIGHT}px` }}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                            item.type === 'session'
-                              ? 'bg-zinc-800 text-zinc-400'
-                              : 'bg-purple-900/50 text-purple-400'
-                          }`}>
-                            {item.type === 'session' ? (item.sessionType ?? 'Session') : 'Party'}
-                          </span>
-                          {item.code && (
-                            <span className="text-[10px] font-mono text-nv/60">{item.code}</span>
-                          )}
-                        </div>
-                        <h3 className="text-sm text-zinc-200 leading-snug line-clamp-2">{item.title}</h3>
-                        <div className="flex items-center gap-2 mt-0.5 text-[11px] text-zinc-500">
-                          <span>{item.time}</span>
-                          {item.location && item.location !== 'TBD' && (
-                            <>
-                              <span className="text-zinc-700">·</span>
-                              <span className="truncate">{item.location}</span>
-                            </>
-                          )}
-                        </div>
-                        {item.sponsors && item.sponsors.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {item.sponsors.map((s) => (
-                              <span key={s} className="text-[9px] bg-zinc-800/50 text-zinc-500 px-1 py-0.5 rounded">{s}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => onRemoveItineraryItem(item.id)}
-                        className="text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all shrink-0 p-0.5 cursor-pointer"
-                        title="Remove from itinerary"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
+                    <span className="text-[10px] text-zinc-600 w-12 shrink-0 text-right pr-2 -mt-1.5 select-none">
+                      {fmtHour(h)}
+                    </span>
+                    <div className="flex-1 border-t border-zinc-800/50" />
                   </div>
                 ))}
+
+                {/* Event blocks */}
+                <div className="absolute left-12 right-2 top-0 bottom-0">
+                  {layoutItems.map(item => {
+                    const top = Math.max(0, (item.startMin / 60 - HOUR_START) * HOUR_HEIGHT)
+                    const height = Math.max(36, ((item.endMin - item.startMin) / 60) * HOUR_HEIGHT)
+                    const widthPct = 100 / item.totalCols
+                    const leftPct = item.col * widthPct
+
+                    return (
+                      <div
+                        key={item.id}
+                        className={`absolute rounded-lg border overflow-hidden group transition-colors ${
+                          item.type === 'session'
+                            ? 'bg-nv/8 border-nv/20 hover:bg-nv/15'
+                            : 'bg-purple-500/8 border-purple-500/20 hover:bg-purple-500/15'
+                        }`}
+                        style={{
+                          top: `${top}px`,
+                          height: `${height}px`,
+                          left: `${leftPct}%`,
+                          width: `calc(${widthPct}% - 4px)`,
+                        }}
+                      >
+                        <div className="px-2 py-1.5 h-full flex flex-col overflow-hidden">
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className={`text-[9px] font-medium ${
+                              item.type === 'session' ? 'text-nv/70' : 'text-purple-400/70'
+                            }`}>
+                              {item.type === 'session' ? (item.sessionType ?? 'Session') : 'Party'}
+                            </span>
+                            {item.code && (
+                              <span className="text-[9px] font-mono text-zinc-600">{item.code}</span>
+                            )}
+                            <button
+                              onClick={() => onRemoveItineraryItem(item.id)}
+                              className="ml-auto text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all shrink-0 cursor-pointer"
+                              title="Remove"
+                            >
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                          <h4 className="text-[11px] text-zinc-200 leading-snug line-clamp-2 font-medium">{item.title}</h4>
+                          <div className="mt-auto">
+                            <span className="text-[10px] text-zinc-500">{item.time}</span>
+                            {item.location && item.location !== 'TBD' && (
+                              <span className="text-[10px] text-zinc-600 block truncate">{item.location}</span>
+                            )}
+                          </div>
+                          {item.sponsors && item.sponsors.length > 0 && (
+                            <div className="flex flex-wrap gap-0.5 mt-0.5">
+                              {item.sponsors.map((s: string) => (
+                                <span key={s} className="text-[8px] bg-purple-500/10 text-purple-400/60 px-1 py-px rounded">{s}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-            ))
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -366,7 +366,10 @@ interface ItineraryItem {
   type: "session" | "party";
   title: string;
   day: string;
+  date: string;
   time: string;
+  startTime: string;
+  endTime: string;
   location?: string;
   code?: string;
   sessionType?: string;
@@ -378,8 +381,11 @@ const itineraryItemSchema = z.object({
   id: z.string(),
   type: z.enum(["session", "party"]),
   title: z.string(),
-  day: z.string(),
-  time: z.string(),
+  day: z.string().describe("Day of week, e.g. 'Monday'"),
+  date: z.string().describe("Full date, e.g. 'March 17, 2026'"),
+  time: z.string().describe("Human-readable time range, e.g. '11:00 AM – 1:00 PM' or '6–9 PM'"),
+  startTime: z.string().describe("24-hour start time for calendar positioning, e.g. '11:00' or '18:00'"),
+  endTime: z.string().describe("24-hour end time for calendar positioning, e.g. '13:00' or '21:00'"),
   location: z.string().optional(),
   code: z.string().optional(),
   sessionType: z.string().optional(),
@@ -438,12 +444,22 @@ export const saveToItinerary = createTool({
       };
     }
 
-    // Check for time conflicts on same day
+    // Check for time conflicts on same day using actual time overlap
+    const toMin = (t: string) => {
+      const [h, m] = t.split(":").map(Number);
+      return h * 60 + (m || 0);
+    };
     const conflicts = currentItinerary
       .filter((i: ItineraryItem) => i.day === item.day)
       .filter((existing: ItineraryItem) => {
-        // Simple overlap heuristic: items on same day with overlapping time strings
-        return existing.time === item.time;
+        if (!existing.startTime || !existing.endTime || !item.startTime || !item.endTime) {
+          return existing.time === item.time;
+        }
+        const aStart = toMin(existing.startTime);
+        const aEnd = toMin(existing.endTime);
+        const bStart = toMin(item.startTime);
+        const bEnd = toMin(item.endTime);
+        return aStart < bEnd && bStart < aEnd;
       })
       .map((existing: ItineraryItem) => ({
         existingItem: existing.title,
